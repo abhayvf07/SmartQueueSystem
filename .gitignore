@@ -1,0 +1,107 @@
+# =========================
+# Node Modules (Both)
+# =========================
+node_modules/
+**/node_modules/
+
+# =========================
+# Logs
+# =========================
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# =========================
+# Environment Variables
+# =========================
+.env
+.env.*
+!.env.example
+
+# =========================
+# Build Folders
+# =========================
+dist/
+build/
+client/build/
+server/build/
+
+# =========================
+# Cache & Temp Files
+# =========================
+.cache/
+.tmp/
+.temp/
+coverage/
+.vscode/
+.idea/
+
+# =========================
+# OS Files
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# React (Client)
+# =========================
+client/node_modules/
+client/build/
+client/.env
+client/.env.local
+client/.env.development.local
+client/.env.test.local
+client/.env.production.local
+
+# =========================
+# Backend (Server)
+# =========================
+server/node_modules/
+server/.env
+server/.env.local
+
+# =========================
+# Database Files
+# =========================
+*.sqlite
+*.sqlite3
+*.db
+
+# =========================
+# Uploads / Static Files
+# =========================
+uploads/
+public/uploads/
+
+# =========================
+# Misc
+# =========================
+*.pem
+*.key
+*.crt
+
+# =========================
+# Testing
+# =========================
+jest.config.js
+coverage/
+
+# =========================
+# TypeScript
+# =========================
+*.tsbuildinfo
+
+# =========================
+# Next.js (if ever used)
+# =========================
+.next/
+out/
+
+# =========================
+# ESLint cache
+# =========================
+.eslintcache
