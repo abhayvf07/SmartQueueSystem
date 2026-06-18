@@ -197,6 +197,18 @@ npm install
 npm run dev
 ```
 
+### Running with Docker 🐳
+You can run the entire application (Backend, Frontend, MongoDB) using Docker Compose:
+
+```bash
+# Start all services in the background
+docker compose up -d
+
+# Stop all services
+docker compose down
+```
+When running with Docker, the frontend will be available at `http://localhost:5173` and the backend at `http://localhost:5000`.
+
 ### Environment Variables
 
 ```env

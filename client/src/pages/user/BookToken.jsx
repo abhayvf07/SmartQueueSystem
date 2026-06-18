@@ -27,10 +27,12 @@ const BookToken = () => {
             baseServices.map(async (service) => {
               try {
                 const qRes = await api.get(`/tokens/queue-status/${service._id}`);
+                const waiting = qRes.data.data.stats.waiting || 0;
+                const avgWait = qRes.data.data.stats.avgWaitMinutes || Math.round(60 / (service.capacityPerHour || 20));
                 return { 
                   ...service, 
                   stats: qRes.data.data.stats, 
-                  estimatedMinutes: qRes.data.data.stats.avgWaitMinutes || 0 
+                  estimatedMinutes: waiting * avgWait 
                 };
               } catch (e) {
                 return service;
@@ -109,7 +111,7 @@ const BookToken = () => {
               return (
                 <div
                   key={service._id}
-                  className={`service-card card hover:border-primary cursor-pointer relative transition-all duration-300 hover:translate-y-[-4px] ${
+                  className={`service-card card hover:border-primary cursor-pointer relative transition-all duration-300 hover:-translate-y-1 ${
                     selectedService?._id === service._id ? 'selected' : ''
                   }`}
                   onClick={() => setSelectedService(service)}
@@ -117,13 +119,13 @@ const BookToken = () => {
                   style={{ position: 'relative', overflow: 'visible' }}
                 >
                   {isRecommended && (
-                    <span className="absolute -top-3 left-4 bg-gradient-to-r from-emerald-500 to-teal-400 text-slate-950 text-[10px] font-extrabold px-2.5 py-1 rounded-full uppercase tracking-wider shadow-lg shadow-emerald-500/20 border border-emerald-400/20 flex items-center gap-1 z-10 animate-pulse">
+                    <span className="absolute -top-3 left-4 bg-linear-to-r from-emerald-500 to-teal-400 text-slate-950 text-[10px] font-extrabold px-2.5 py-1 rounded-full uppercase tracking-wider shadow-lg shadow-emerald-500/20 border border-emerald-400/20 flex items-center gap-1 z-10 animate-pulse">
                       <Zap size={10} className="fill-slate-950" /> Recommended
                     </span>
                   )}
 
                   <div className="flex justify-between items-center mb-2">
-                    <div className="service-card-name text-slate-100 font-semibold">{service.name}</div>
+                    <div className="service-card-name text-slate-800 font-semibold">{service.name}</div>
                     <span
                       className={`badge ${isRecommended ? 'badge-success' : 'badge-primary'}`}
                       style={{ fontSize: '0.85rem', fontWeight: 800 }}
@@ -131,17 +133,17 @@ const BookToken = () => {
                       {service.prefix}
                     </span>
                   </div>
-                  <div className="service-card-desc text-slate-400 text-xs mb-3">{service.description}</div>
-                  <div className="service-card-meta flex flex-wrap gap-x-4 gap-y-1.5 border-t border-slate-800/60 pt-2.5 mt-auto">
-                    <span className="flex items-center gap-1 text-slate-400 text-xs">
-                      <Users size={12} className="text-slate-400" /> {service.capacityPerHour}/hr cap
+                  <div className="service-card-desc text-slate-500 text-xs mb-3">{service.description}</div>
+                  <div className="service-card-meta flex flex-wrap gap-x-4 gap-y-1.5 border-t border-slate-200 pt-2.5 mt-auto">
+                    <span className="flex items-center gap-1 text-slate-500 text-xs">
+                      <Users size={12} className="text-slate-500" /> {service.capacityPerHour}/hr cap
                     </span>
-                    <span className="flex items-center gap-1 text-indigo-400 text-xs font-semibold">
-                      <Users size={12} className="text-indigo-400 animate-pulse" /> {waitingCount} waiting
+                    <span className="flex items-center gap-1 text-indigo-600 text-xs font-semibold">
+                      <Users size={12} className="text-indigo-600 animate-pulse" /> {waitingCount} waiting
                     </span>
                     {waitTime !== undefined && (
-                      <span className="flex items-center gap-1 text-emerald-400 text-xs font-semibold">
-                        <Zap size={12} className="text-emerald-400" /> ~{waitTime} min wait
+                      <span className="flex items-center gap-1 text-emerald-600 text-xs font-semibold">
+                        <Zap size={12} className="text-emerald-600" /> ~{waitTime} min wait
                       </span>
                     )}
                   </div>
@@ -154,27 +156,27 @@ const BookToken = () => {
             <div
               className="card animate-in p-6"
             >
-              <h3 className="card-title text-slate-100 text-lg font-bold mb-2 flex items-center gap-2">
-                <Ticket size={20} className="text-indigo-400" /> Confirm Booking
+              <h3 className="card-title text-slate-800 text-lg font-bold mb-2 flex items-center gap-2">
+                <Ticket size={20} className="text-indigo-600" /> Confirm Booking
               </h3>
-              <p className="text-sm text-slate-300 mb-4 leading-relaxed">
-                You're about to join the queue for <strong className="text-indigo-300">{selectedService.name}</strong>.
-                Your token prefix will be <strong className="text-indigo-300">{selectedService.prefix}</strong>.
+              <p className="text-sm text-slate-600 mb-4 leading-relaxed">
+                You're about to join the queue for <strong className="text-indigo-600">{selectedService.name}</strong>.
+                Your token prefix will be <strong className="text-indigo-600">{selectedService.prefix}</strong>.
               </p>
               
               {selectedService.estimatedMinutes !== undefined && (
-                <div className="bg-slate-950/60 border border-slate-800/80 rounded-xl px-4 py-3 mb-5 flex items-center gap-3">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 mb-6 inline-flex items-center gap-3 w-max">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-600">
                     <Zap size={16} />
                   </div>
                   <div>
-                    <span className="block text-[11px] text-slate-400 font-medium">Estimated wait time</span>
-                    <span className="text-sm font-bold text-emerald-400">{selectedService.estimatedMinutes} minutes</span>
+                    <span className="block text-[11px] text-slate-500 font-medium">Estimated wait time</span>
+                    <span className="text-sm font-bold text-emerald-600">{selectedService.estimatedMinutes} minutes</span>
                   </div>
                 </div>
               )}
 
-              <div className="flex gap-3">
+              <div className="flex gap-3 mt-2">
                 <button
                   className="btn btn-primary btn-lg flex items-center gap-2 cursor-pointer"
                   onClick={handleBook}

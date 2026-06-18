@@ -42,7 +42,7 @@ const QueueTracker = () => {
   useEffect(() => {
     if (!socket) return;
 
-    const handleQueueUpdate = (data) => setQueue(data);
+    const handleQueueUpdate = (data) => setQueue(data.queue ? data.queue : data);
     const handleStatsUpdate = (data) => setStats(data);
 
     socket.on('queue:update', handleQueueUpdate);

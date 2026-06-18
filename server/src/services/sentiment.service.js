@@ -29,12 +29,19 @@ const saveChatLog = async (userId, message, response, sentiment = 'neutral') => 
  * @param {number} [days=7] - Number of days to look back
  * @returns {{ positive, neutral, frustrated, total, satisfactionRate }}
  */
-const getSentimentStats = async (days = 7) => {
+const getSentimentStats = async (startDate, endDate) => {
   try {
-    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+    const matchStage = {};
+    if (startDate || endDate) {
+      matchStage.timestamp = {};
+      if (startDate) matchStage.timestamp.$gte = new Date(startDate);
+      if (endDate) matchStage.timestamp.$lte = new Date(endDate);
+    } else {
+      matchStage.timestamp = { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) };
+    }
 
     const results = await ChatLog.aggregate([
-      { $match: { timestamp: { $gte: since } } },
+      { $match: matchStage },
       {
         $group: {
           _id: '$sentiment',
@@ -59,11 +66,10 @@ const getSentimentStats = async (days = 7) => {
       ...counts,
       total,
       satisfactionRate,
-      periodDays: days,
     };
   } catch (error) {
     logger.error(`Sentiment stats error: ${error.message}`);
-    return { positive: 0, neutral: 0, frustrated: 0, total: 0, satisfactionRate: 0, periodDays: days };
+    return { positive: 0, neutral: 0, frustrated: 0, total: 0, satisfactionRate: 0 };
   }
 };
 
@@ -71,12 +77,19 @@ const getSentimentStats = async (days = 7) => {
  * Get sentiment trend over time (daily breakdown).
  * @param {number} [days=7]
  */
-const getSentimentTrend = async (days = 7) => {
+const getSentimentTrend = async (startDate, endDate) => {
   try {
-    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+    const matchStage = {};
+    if (startDate || endDate) {
+      matchStage.timestamp = {};
+      if (startDate) matchStage.timestamp.$gte = new Date(startDate);
+      if (endDate) matchStage.timestamp.$lte = new Date(endDate);
+    } else {
+      matchStage.timestamp = { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) };
+    }
 
     const results = await ChatLog.aggregate([
-      { $match: { timestamp: { $gte: since } } },
+      { $match: matchStage },
       {
         $group: {
           _id: {

@@ -55,11 +55,15 @@ const LiveDisplay = () => {
 
     // ONE listener, OUTSIDE the forEach — prevents N duplicate listeners
     const handleQueueUpdate = (data) => {
-      if (data.length > 0 && data[0].serviceId) {
-        const sid = data[0].serviceId._id || data[0].serviceId;
+      // Support both new object format and legacy array format
+      const isNewFormat = data && !Array.isArray(data) && data.serviceId !== undefined;
+      const sid = isNewFormat ? data.serviceId : (data.length > 0 && data[0].serviceId ? (data[0].serviceId._id || data[0].serviceId) : null);
+      const queueArray = isNewFormat ? data.queue : data;
+
+      if (sid) {
         setQueues((prev) => ({
           ...prev,
-          [sid]: { ...prev[sid], queue: data },
+          [sid]: { ...prev[sid], queue: queueArray },
         }));
       }
     };

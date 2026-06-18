@@ -1,0 +1,74 @@
+# ──────────────────────────────────────────────────────────────
+# Smart Queue Management System — Docker Compose
+# ──────────────────────────────────────────────────────────────
+# Usage:
+#   docker compose up -d          # Start all services
+#   docker compose down            # Stop all services
+#   docker compose down -v         # Stop and remove volumes (data loss!)
+#   docker compose logs -f backend # Tail backend logs
+# ──────────────────────────────────────────────────────────────
+
+services:
+  # ── Frontend Web App ────────────────────────────────────────
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: smartqueue-client
+    restart: unless-stopped
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+    networks:
+      - smartqueue-net
+
+  # ── Backend API Server ──────────────────────────────────────
+  backend:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: smartqueue-backend
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    env_file:
+      - ./server/.env
+    environment:
+      # Override connection strings to use Docker-internal DNS
+      MONGODB_URI: mongodb://mongodb:27017/smart-queue
+      MONGODB_DB: smart-queue
+      NODE_ENV: production
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - smartqueue-net
+
+  # ── MongoDB Database ────────────────────────────────────────
+  mongodb:
+    image: mongo:7
+    container_name: smartqueue-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - smartqueue-net
+
+# ── Persistent Volumes ──────────────────────────────────────
+volumes:
+  mongo-data:
+    driver: local
+
+# ── Custom Bridge Network ───────────────────────────────────
+networks:
+  smartqueue-net:
+    driver: bridge

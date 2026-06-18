@@ -95,7 +95,7 @@ const ServiceManager = () => {
     if (!form.name.trim()) errs.name = 'Name is required.';
     if (!form.prefix.trim()) errs.prefix = 'Prefix is required.';
     if (form.prefix.trim().length > 3) errs.prefix = 'Prefix max 3 characters.';
-    if (!form.capacityPerHour || form.capacityPerHour < 1) errs.capacityPerHour = 'Invalid capacity.';
+    if (!form.capacityPerHour || form.capacityPerHour < 1) errs.capacityPerHour = 'Capacity must be at least 1/hr.';
     return errs;
   };
 

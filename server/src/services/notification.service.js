@@ -11,7 +11,7 @@ const initNotificationService = (socketIO) => {
  */
 const broadcastQueueUpdate = (serviceId, queueData) => {
   if (!io) return;
-  io.to(`service:${serviceId}`).emit('queue:update', queueData);
+  io.to(`service:${serviceId}`).emit('queue:update', { serviceId, queue: queueData });
 };
 
 /**

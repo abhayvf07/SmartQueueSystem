@@ -103,14 +103,14 @@ const TokenHistory = () => {
                         <td className="text-sm font-medium">
                           {createdDate.toLocaleDateString()} {createdDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </td>
-                        <td className="font-bold text-slate-200">
+                        <td className="font-bold text-slate-800">
                           {token.serviceId?.name || 'Unknown'}
                         </td>
-                        <td className="font-black text-primary-light text-lg">
+                        <td className="font-black text-primary text-lg">
                           {token.tokenNumber}
                         </td>
                         <td>{getStatusBadge(token.status)}</td>
-                        <td className="text-slate-400">{waitTimeStr}</td>
+                        <td className="text-slate-500">{waitTimeStr}</td>
                       </tr>
                     );
                   })}
@@ -119,7 +119,7 @@ const TokenHistory = () => {
             </div>
 
             {totalPages > 1 && (
-              <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-800">
+              <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-200">
                 <button
                   className="btn btn-ghost btn-sm"
                   disabled={page === 1 || loading}
@@ -127,7 +127,7 @@ const TokenHistory = () => {
                 >
                   <ChevronLeft size={16} /> Previous
                 </button>
-                <div className="text-sm text-slate-400">
+                <div className="text-sm text-slate-500">
                   Page {page} of {totalPages}
                 </div>
                 <button

@@ -41,6 +41,11 @@ const UserDashboard = () => {
   useEffect(() => {
     if (!socket) return;
 
+    // Get unique active service IDs safely
+    const uniqueServiceIds = [...new Set(tokens.filter(t => t.status === 'waiting' || t.status === 'serving').map(t => t.serviceId?._id || t.serviceId))].filter(Boolean);
+
+    uniqueServiceIds.forEach(sid => socket.emit('join:service', sid));
+
     const handleTokenCalled = (data) => {
       toast.success(`🎉 Your token ${data.tokenNumber} is being called!`, {
         duration: 8000,
@@ -66,14 +71,19 @@ const UserDashboard = () => {
       fetchTokens();
     };
 
+    const handleQueueUpdate = () => fetchTokens();
+
     socket.on('token:called', handleTokenCalled);
     socket.on('token:approaching', handleTokenApproaching);
+    socket.on('queue:update', handleQueueUpdate);
 
     return () => {
+      uniqueServiceIds.forEach(sid => socket.emit('leave:service', sid));
       socket.off('token:called', handleTokenCalled);
       socket.off('token:approaching', handleTokenApproaching);
+      socket.off('queue:update', handleQueueUpdate);
     };
-  }, [socket]);
+  }, [socket, tokens.length]);
 
   const handleCancel = async (tokenId) => {
     try {
@@ -191,13 +201,13 @@ const UserDashboard = () => {
             {tokens.map((token) => (
               <div
                 key={token._id}
-                className={`token-card p-5 border rounded-xl relative ${token.status === 'serving' ? 'border-green-500 ring-2 ring-green-500/50 animate-pulse' : 'border-slate-200/20'}`}
+                className={`token-card p-5 border rounded-xl relative ${token.status === 'serving' ? 'border-green-500 ring-2 ring-green-500/50 animate-pulse' : 'border-slate-200'}`}
                 id={`token-${token.tokenNumber}`}
               >
                 <div className="flex justify-between items-start mb-2">
                   <div>
-                    <div className="text-3xl font-black text-slate-100">{token.tokenNumber}</div>
-                    <div className="text-sm text-slate-400 font-medium">
+                    <div className="text-3xl font-black text-slate-800">{token.tokenNumber}</div>
+                    <div className="text-sm text-slate-500 font-medium">
                       {token.serviceId?.name || 'Unknown Service'}
                     </div>
                   </div>
@@ -211,20 +221,20 @@ const UserDashboard = () => {
                   </div>
                 </div>
 
-                <div className="flex flex-wrap gap-4 mt-4 mb-5 p-3 rounded-lg bg-slate-900/50">
+                <div className="flex flex-wrap gap-4 mt-4 mb-6 p-3 rounded-lg bg-slate-50 border border-slate-200">
                   {token.status === 'waiting' && token.position && (
                     <div className="flex items-center gap-2">
                       <Users size={16} className="text-primary" />
-                      <span className="text-sm text-slate-300">
-                        Position: <strong className="text-primary-light">#{token.position}</strong>
+                      <span className="text-sm text-slate-500">
+                        Position: <strong className="text-primary">#{token.position}</strong>
                       </span>
                     </div>
                   )}
                   {token.status === 'waiting' && token.serviceId?.estimatedMinutes && (
                     <div className="flex items-center gap-2">
                       <Clock size={16} className="text-warning" />
-                      <span className="text-sm text-slate-300">
-                        Est. Wait: <strong className="text-warning-light">~{token.serviceId.estimatedMinutes}m</strong>
+                      <span className="text-sm text-slate-500">
+                        Est. Wait: <strong className="text-warning">~{token.serviceId.estimatedMinutes}m</strong>
                       </span>
                     </div>
                   )}
@@ -235,7 +245,7 @@ const UserDashboard = () => {
                   )}
                 </div>
 
-                <div className="flex gap-2">
+                <div className="flex gap-2 mt-2">
                   {token.status === 'waiting' && (
                     confirmCancelId === token._id ? (
                       <>

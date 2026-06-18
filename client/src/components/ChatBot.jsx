@@ -89,51 +89,51 @@ const ChatBot = () => {
 
       {/* Chat Window */}
       {isOpen && (
-        <div className="flex h-[500px] w-[380px] flex-col overflow-hidden rounded-2xl border border-slate-800/80 bg-slate-950/95 shadow-2xl backdrop-blur-xl animate-in slide-in-from-bottom-5 duration-300">
+        <div className="flex h-[500px] w-[380px] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-slate-50/95 shadow-2xl backdrop-blur-xl animate-in slide-in-from-bottom-5 duration-300">
           
           {/* Header */}
-          <div className="relative flex items-center justify-between border-b border-slate-800/80 bg-gradient-to-r from-slate-900 via-indigo-950/20 to-slate-900 px-4 py-3">
+          <div className="relative flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3">
             <div className="flex items-center gap-2.5">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-500/10 border border-indigo-500/20">
-                <Bot className="h-5 w-5 text-indigo-400" />
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-50 border border-indigo-100">
+                <Bot className="h-5 w-5 text-indigo-600" />
               </div>
               <div>
-                <h3 className="text-sm font-semibold text-slate-100 flex items-center gap-1.5">
+                <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-1.5">
                   Queue Assistant
                   <span className="inline-block h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
                 </h3>
-                <span className="text-[10px] text-indigo-300 font-medium">Powered by Gemini AI</span>
+                <span className="text-[10px] text-indigo-600 font-medium">Powered by Gemini AI</span>
               </div>
             </div>
             
             <button
               onClick={() => setIsOpen(false)}
-              className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800/50 hover:text-slate-200 transition-colors cursor-pointer"
+              className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors cursor-pointer"
             >
               <X className="h-4.5 w-4.5" />
             </button>
           </div>
 
           {/* Messages Area */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-transparent">
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
             {messages.map((msg) => (
               <div
                 key={msg.id}
                 className={`flex gap-2.5 ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 {msg.sender !== 'user' && (
-                  <div className="flex h-7.5 w-7.5 shrink-0 items-center justify-center rounded-full bg-indigo-500/10 border border-indigo-500/20">
-                    <Bot className="h-4 w-4 text-indigo-400" />
+                  <div className="flex h-7.5 w-7.5 shrink-0 items-center justify-center rounded-full bg-indigo-50 border border-indigo-100">
+                    <Bot className="h-4 w-4 text-indigo-600" />
                   </div>
                 )}
                 
                 <div
                   className={`max-w-[75%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${
                     msg.sender === 'user'
-                      ? 'bg-gradient-to-tr from-indigo-600 to-indigo-500 text-white rounded-tr-none shadow-md shadow-indigo-600/10'
+                      ? 'bg-indigo-600 text-white rounded-tr-none shadow-md shadow-indigo-600/10'
                       : msg.isError
-                      ? 'bg-red-500/10 border border-red-500/20 text-red-200 rounded-tl-none'
-                      : 'bg-slate-900/60 border border-slate-800/50 text-slate-200 rounded-tl-none'
+                      ? 'bg-red-50 border border-red-200 text-red-800 rounded-tl-none'
+                      : 'bg-white border border-slate-200 text-slate-800 rounded-tl-none'
                   }`}
                 >
                   <p className="whitespace-pre-wrap">{msg.text}</p>
@@ -147,11 +147,11 @@ const ChatBot = () => {
             {/* Loading / Typing Indicator */}
             {isLoading && (
               <div className="flex gap-2.5 justify-start">
-                <div className="flex h-7.5 w-7.5 shrink-0 items-center justify-center rounded-full bg-indigo-500/10 border border-indigo-500/20">
-                  <Bot className="h-4 w-4 text-indigo-400" />
+                <div className="flex h-7.5 w-7.5 shrink-0 items-center justify-center rounded-full bg-indigo-50 border border-indigo-100">
+                  <Bot className="h-4 w-4 text-indigo-600" />
                 </div>
-                <div className="bg-slate-900/60 border border-slate-800/50 text-slate-400 rounded-2xl rounded-tl-none px-4 py-3 text-sm flex items-center gap-2">
-                  <Loader2 className="h-4.5 w-4.5 animate-spin text-indigo-400" />
+                <div className="bg-white border border-slate-200 text-slate-500 rounded-2xl rounded-tl-none px-4 py-3 text-sm flex items-center gap-2">
+                  <Loader2 className="h-4.5 w-4.5 animate-spin text-indigo-600" />
                   <span>Analyzing queue status...</span>
                 </div>
               </div>
@@ -162,7 +162,7 @@ const ChatBot = () => {
           {/* Input Form */}
           <form
             onSubmit={handleSend}
-            className="border-t border-slate-800/80 bg-slate-950/80 p-3 flex gap-2 items-center"
+            className="border-t border-slate-200 bg-white p-3 flex gap-2 items-center"
           >
             <input
               type="text"
@@ -170,12 +170,12 @@ const ChatBot = () => {
               onChange={(e) => setInput(e.target.value)}
               placeholder="Ask about waiting times, counters..."
               disabled={isLoading}
-              className="flex-1 bg-slate-900/60 border border-slate-800/80 rounded-xl px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/20 transition-all disabled:opacity-50"
+              className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all disabled:opacity-50"
             />
             <button
               type="submit"
               disabled={!input.trim() || isLoading}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-md shadow-indigo-600/20 transition-all hover:bg-indigo-500 active:scale-95 disabled:opacity-40 disabled:hover:bg-indigo-600 cursor-pointer"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-md shadow-indigo-600/20 transition-all hover:bg-indigo-700 active:scale-95 disabled:opacity-40 disabled:hover:bg-indigo-600 cursor-pointer"
             >
               <Send className="h-4 w-4" />
             </button>

@@ -141,8 +141,9 @@ const bookToken = async (userId, serviceId, priority = 'normal', bypassDuplicate
   // Generate atomic token number
   const tokenNumber = await generateTokenNumber(serviceId, service.prefix);
 
-  // Set expiry (30 minutes from now)
-  const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
+  // Set expiry to the end of the current day (midnight)
+  const expiresAt = new Date();
+  expiresAt.setHours(23, 59, 59, 999);
 
   const token = await Token.create({
     userId,
@@ -241,12 +242,17 @@ const cancelToken = async (tokenId, userId) => {
 /**
  * Get analytics — avg wait time, throughput, peak hours
  */
-const getAnalytics = async (serviceId) => {
-  const today = new Date(new Date().setHours(0, 0, 0, 0));
-  const matchStage = {
-    status: 'completed',
-    completedAt: { $gte: today },
-  };
+const getAnalytics = async (serviceId, startDate, endDate) => {
+  const matchStage = { status: 'completed' };
+  
+  if (startDate || endDate) {
+    matchStage.completedAt = {};
+    if (startDate) matchStage.completedAt.$gte = new Date(startDate);
+    if (endDate) matchStage.completedAt.$lte = new Date(endDate);
+  } else {
+    const today = new Date(new Date().setHours(0, 0, 0, 0));
+    matchStage.completedAt = { $gte: today };
+  }
   if (serviceId) {
     const sId = serviceId._id ? serviceId._id.toString() : serviceId.toString();
     const isValidId = /^[0-9a-fA-F]{24}$/.test(sId);

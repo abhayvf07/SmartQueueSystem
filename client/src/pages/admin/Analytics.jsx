@@ -54,14 +54,40 @@ const Analytics = () => {
   const [loading, setLoading] = useState(true);
   const [forecast, setForecast] = useState(null);
   const [sentiment, setSentiment] = useState(null);
+  const [dateRange, setDateRange] = useState('today');
+  const [customDates, setCustomDates] = useState({ start: '', end: '' });
+
+  const buildDateQuery = () => {
+    if (dateRange === 'today') {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      return `startDate=${today.toISOString()}`;
+    }
+    if (dateRange === '7d') {
+      const start = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      return `startDate=${start.toISOString()}`;
+    }
+    if (dateRange === '30d') {
+      const start = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      return `startDate=${start.toISOString()}`;
+    }
+    if (dateRange === 'custom' && customDates.start && customDates.end) {
+      return `startDate=${new Date(customDates.start).toISOString()}&endDate=${new Date(customDates.end).toISOString()}`;
+    }
+    return '';
+  };
 
   const fetchAll = async () => {
     try {
+      const dateQuery = buildDateQuery();
+      const serviceQuery = selectedService ? `serviceId=${selectedService}` : '';
+      const qs = [serviceQuery, dateQuery].filter(Boolean).join('&');
+
       const results = await Promise.allSettled([
-        api.get(`/admin/analytics${selectedService ? `?serviceId=${selectedService}` : ''}`),
+        api.get(`/admin/analytics${qs ? `?${qs}` : ''}`),
         api.get('/services'),
         api.get(`/admin/forecast${selectedService ? `?serviceId=${selectedService}` : ''}`),
-        api.get('/admin/sentiment?days=7'),
+        api.get(`/admin/sentiment${qs ? `?${qs}` : ''}`),
       ]);
       setAnalytics(results[0].status === 'fulfilled' ? results[0].value.data.data : null);
       setServices(results[1].status === 'fulfilled' ? results[1].value.data.data.services : []);
@@ -75,8 +101,10 @@ const Analytics = () => {
   };
 
   useEffect(() => {
+    if (dateRange === 'custom' && (!customDates.start || !customDates.end)) return;
+    setLoading(true);
     fetchAll();
-  }, [selectedService]);
+  }, [selectedService, dateRange, customDates]);
 
   if (loading) {
     return (
@@ -89,6 +117,17 @@ const Analytics = () => {
   const statusCounts = analytics?.statusCounts || {};
   const priorityCounts = analytics?.priorityCounts || {};
   const totalTokens = analytics?.totalTokensToday || 0;
+
+  const getPeriodLabel = () => {
+    switch (dateRange) {
+      case 'today': return 'Today';
+      case '7d': return 'Last 7 Days';
+      case '30d': return 'Last 30 Days';
+      case 'custom': return 'Selected Range';
+      default: return 'Today';
+    }
+  };
+  const periodLabel = getPeriodLabel();
 
   // Prepare Pie Chart Data
   const pieData = [
@@ -123,29 +162,69 @@ const Analytics = () => {
 
   return (
     <div className="animate-in" id="analytics-page">
-      <div className="page-header">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1>📊 Analytics & Metrics</h1>
-            <p>Queue performance, AI insights, and sentiment analysis</p>
+      <div className="page-header mb-8">
+        {/* Center: Heading */}
+        <div className="flex flex-col items-center text-center mb-6">
+          <h1 className="text-2xl font-bold text-slate-900 flex items-center justify-center gap-2">
+            <Activity className="w-6 h-6 text-emerald-500" />
+            Analytics & Metrics
+          </h1>
+          <p className="text-slate-500 mt-1 text-sm">Queue performance, AI insights, and sentiment analysis</p>
+        </div>
+
+        {/* Filters Row: Pushed strictly to edges */}
+        <div className="flex justify-between items-center w-full mt-4">
+          {/* Left side: perfectly aligned with left card */}
+          <div className="flex-1 flex justify-start">
+            <select
+              className="form-input form-select"
+              style={{ maxWidth: 260, minWidth: 200 }}
+              value={selectedService}
+              onChange={(e) => setSelectedService(e.target.value)}
+            >
+              <option value="">All Services</option>
+              {services.map((s) => (
+                <option key={s._id} value={s._id}>
+                  {s.name} ({s.prefix})
+                </option>
+              ))}
+            </select>
           </div>
-          <select
-            className="form-input form-select"
-            style={{ maxWidth: 260 }}
-            value={selectedService}
-            onChange={(e) => {
-              setSelectedService(e.target.value);
-              setLoading(true);
-            }}
-            id="analytics-service-filter"
-          >
-            <option value="">All Services</option>
-            {services.map((s) => (
-              <option key={s._id} value={s._id}>
-                {s.name} ({s.prefix})
-              </option>
-            ))}
-          </select>
+
+          {/* Right side: perfectly aligned with right card */}
+          <div className="flex-1 flex justify-end items-center gap-3">
+            {dateRange === 'custom' && (
+              <div className="flex gap-2 items-center">
+                <input 
+                  type="date" 
+                  className="form-input" 
+                  style={{ maxWidth: 150 }}
+                  value={customDates.start}
+                  onChange={(e) => setCustomDates({ ...customDates, start: e.target.value })}
+                />
+                <span className="text-slate-400 font-medium text-sm">to</span>
+                <input 
+                  type="date" 
+                  className="form-input" 
+                  style={{ maxWidth: 150 }}
+                  value={customDates.end}
+                  onChange={(e) => setCustomDates({ ...customDates, end: e.target.value })}
+                />
+              </div>
+            )}
+            
+            <select
+              className="form-input form-select"
+              style={{ maxWidth: 200, minWidth: 160 }}
+              value={dateRange}
+              onChange={(e) => setDateRange(e.target.value)}
+            >
+              <option value="today">Today</option>
+              <option value="7d">Last 7 Days</option>
+              <option value="30d">Last 30 Days</option>
+              <option value="custom">Custom Range</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -157,7 +236,7 @@ const Analytics = () => {
           </div>
           <div>
             <div className="stat-value">{analytics?.totalCompleted || 0}</div>
-            <div className="stat-label">Completed Today</div>
+            <div className="stat-label">Completed {periodLabel}</div>
           </div>
         </div>
         <div className="stat-card warning">
@@ -175,7 +254,7 @@ const Analytics = () => {
           </div>
           <div>
             <div className="stat-value">{totalTokens}</div>
-            <div className="stat-label">Total Tokens Today</div>
+            <div className="stat-label">Total Tokens {periodLabel}</div>
           </div>
         </div>
         <div className="stat-card danger">

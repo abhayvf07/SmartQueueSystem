@@ -42,16 +42,28 @@ const AdminDashboard = () => {
   useEffect(() => {
     if (!socket) return;
 
+    // Join all service rooms
+    if (stats?.serviceBreakdown) {
+      stats.serviceBreakdown.forEach((s) => {
+        socket.emit('join:service', s._id);
+      });
+    }
+
     const handleUpdate = () => fetchData();
 
     socket.on('queue:update', handleUpdate);
     socket.on('queue:stats', handleUpdate);
 
     return () => {
+      if (stats?.serviceBreakdown) {
+        stats.serviceBreakdown.forEach((s) => {
+          socket.emit('leave:service', s._id);
+        });
+      }
       socket.off('queue:update', handleUpdate);
       socket.off('queue:stats', handleUpdate);
     };
-  }, [socket, fetchData]);
+  }, [socket, stats?.serviceBreakdown, fetchData]);
 
   const getStatusBadge = (status) => {
     const map = {

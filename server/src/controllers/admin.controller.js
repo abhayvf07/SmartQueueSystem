@@ -236,15 +236,23 @@ const createEmergencyToken = async (req, res, next) => {
  */
 const getAnalytics = async (req, res, next) => {
   try {
-    const { serviceId } = req.query;
-    const analytics = await queueService.getAnalytics(serviceId);
+    const { serviceId, startDate, endDate } = req.query;
+    const analytics = await queueService.getAnalytics(serviceId, startDate, endDate);
 
     // Also get service-wise breakdown
-    const today = new Date(new Date().setHours(0, 0, 0, 0));
+    const matchStage = {};
+    if (startDate || endDate) {
+      matchStage.createdAt = {};
+      if (startDate) matchStage.createdAt.$gte = new Date(startDate);
+      if (endDate) matchStage.createdAt.$lte = new Date(endDate);
+    } else {
+      const today = new Date(new Date().setHours(0, 0, 0, 0));
+      matchStage.createdAt = { $gte: today };
+    }
 
     const [serviceBreakdown, statusCounts, priorityCounts] = await Promise.all([
       Token.aggregate([
-        { $match: { createdAt: { $gte: today } } },
+        { $match: matchStage },
         {
           $group: {
             _id: { serviceId: '$serviceId', status: '$status' },
@@ -273,14 +281,14 @@ const getAnalytics = async (req, res, next) => {
           },
         },
       ]),
-      // Aggregate status counts for all today's tokens
+      // Aggregate status counts for all tokens in range
       Token.aggregate([
-        { $match: { createdAt: { $gte: today } } },
+        { $match: matchStage },
         { $group: { _id: '$status', count: { $sum: 1 } } },
       ]),
-      // Aggregate priority counts for all today's tokens
+      // Aggregate priority counts for all tokens in range
       Token.aggregate([
-        { $match: { createdAt: { $gte: today } } },
+        { $match: matchStage },
         { $group: { _id: '$priority', count: { $sum: 1 } } },
       ]),
     ]);
@@ -333,10 +341,10 @@ const getForecastData = async (req, res, next) => {
  */
 const getSentimentAnalytics = async (req, res, next) => {
   try {
-    const days = parseInt(req.query.days) || 7;
+    const { startDate, endDate } = req.query;
     const [stats, trend] = await Promise.all([
-      getSentimentStats(days),
-      getSentimentTrend(days),
+      getSentimentStats(startDate, endDate),
+      getSentimentTrend(startDate, endDate),
     ]);
 
     res.status(200).json({

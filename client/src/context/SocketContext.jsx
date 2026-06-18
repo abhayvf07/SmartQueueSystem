@@ -55,7 +55,7 @@ export const SocketProvider = ({ children }) => {
         <div
           className={`${
             t.visible ? 'animate-in fade-in zoom-in duration-300' : 'animate-out fade-out zoom-out duration-300'
-          } max-w-md w-full bg-slate-900/95 border border-red-500/30 shadow-2xl rounded-xl pointer-events-auto flex ring-1 ring-black/5 backdrop-blur-xl`}
+          } max-w-md w-full bg-white border border-red-500/30 shadow-2xl rounded-xl pointer-events-auto flex ring-1 ring-black/5 backdrop-blur-xl`}
         >
           <div className="flex-1 w-0 p-4">
             <div className="flex items-start">
@@ -63,19 +63,19 @@ export const SocketProvider = ({ children }) => {
                 <span className="text-2xl">⚠️</span>
               </div>
               <div className="ml-3 flex-1">
-                <p className="text-sm font-semibold text-slate-100">
+                <p className="text-sm font-semibold text-slate-800">
                   Queue Overload Alert
                 </p>
-                <p className="mt-1 text-xs text-slate-400">
+                <p className="mt-1 text-xs text-slate-500">
                   {data.message || `Service is experiencing heavy traffic!`}
                 </p>
               </div>
             </div>
           </div>
-          <div className="flex border-l border-slate-800">
+          <div className="flex border-l border-slate-200">
             <button
               onClick={() => toast.dismiss(t.id)}
-              className="w-full border border-transparent rounded-none rounded-r-lg p-4 flex items-center justify-center text-sm font-medium text-slate-400 hover:text-slate-200 focus:outline-none cursor-pointer"
+              className="w-full border border-transparent rounded-none rounded-r-lg p-4 flex items-center justify-center text-sm font-medium text-slate-500 hover:text-slate-800 focus:outline-none cursor-pointer"
             >
               Close
             </button>
