@@ -2,7 +2,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useSocket } from '../../context/SocketContext';
 import { LogOut, Wifi, WifiOff, Menu } from 'lucide-react';
 
-const Navbar = ({ onMenuToggle, isSidebarOpen }) => {
+const Navbar = ({ onMenuToggle }) => {
   const { user, logout, isAdmin } = useAuth();
   const { connected } = useSocket();
 
