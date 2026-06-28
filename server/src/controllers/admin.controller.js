@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 const Token = require('../models/Token');
 const queueService = require('../services/queue.service');
 const notificationService = require('../services/notification.service');
-const anomalyService = require('../services/anomaly.service');
+const { getCachedAnomaly } = require('../services/anomalyCache');
 const forecastService = require('../services/forecast.service');
 const { getSentimentStats, getSentimentTrend } = require('../services/sentiment.service');
 const ApiError = require('../utils/ApiError');
@@ -87,8 +87,8 @@ const callNext = async (req, res, next) => {
     const queue = await queueService.getQueueForService(serviceId);
     const stats = await queueService.getQueueStats(serviceId);
 
-    // AI-powered anomaly detection for overload alerts (replaces hardcoded threshold)
-    const anomaly = await anomalyService.detectAnomaly(serviceId);
+    // AI-powered anomaly detection from cache (no longer blocks request path)
+    const anomaly = getCachedAnomaly(serviceId);
     if (anomaly.isAnomaly) {
       const serviceObj = calledToken.serviceId;
       notificationService.broadcastOverloadAlert(serviceId, {
@@ -204,8 +204,8 @@ const createEmergencyToken = async (req, res, next) => {
     const queue = await queueService.getQueueForService(serviceId);
     const stats = await queueService.getQueueStats(serviceId);
 
-    // AI-powered anomaly detection for overload alerts
-    const anomaly = await anomalyService.detectAnomaly(serviceId);
+    // AI-powered anomaly detection from cache
+    const anomaly = getCachedAnomaly(serviceId);
     if (anomaly.isAnomaly) {
       const targetService = await mongoose.model('Service').findById(serviceId).lean();
       notificationService.broadcastOverloadAlert(serviceId, {
@@ -362,6 +362,7 @@ const getSentimentAnalytics = async (req, res, next) => {
  */
 const getAnomalyStatus = async (req, res, next) => {
   try {
+    const anomalyService = require('../services/anomaly.service');
     const results = await anomalyService.getAnomalyStatusAll();
 
     res.status(200).json({
