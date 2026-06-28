@@ -88,7 +88,6 @@ public/uploads/
 # Testing
 # =========================
 jest.config.js
-coverage/
 
 # =========================
 # TypeScript
@@ -110,4 +109,3 @@ out/
 # Project-specific / Temporary
 # =========================
 /package-lock.json
-server/test_gemini.js
