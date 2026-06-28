@@ -103,7 +103,7 @@ const BookToken = () => {
       ) : (
         <>
           <div className="service-grid mb-6">
-            {services.map((service, index) => {
+            {services.map((service) => {
               const isRecommended = service._id === recommendedServiceId;
               const waitingCount = service.stats?.waiting ?? 0;
               const waitTime = service.estimatedMinutes ?? 0;
@@ -160,7 +160,7 @@ const BookToken = () => {
                 <Ticket size={20} className="text-indigo-600" /> Confirm Booking
               </h3>
               <p className="text-sm text-slate-600 mb-4 leading-relaxed">
-                You're about to join the queue for <strong className="text-indigo-600">{selectedService.name}</strong>.
+                You&apos;re about to join the queue for <strong className="text-indigo-600">{selectedService.name}</strong>.
                 Your token prefix will be <strong className="text-indigo-600">{selectedService.prefix}</strong>.
               </p>
               
