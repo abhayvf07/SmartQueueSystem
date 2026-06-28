@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import api from '../../api/axios';
 import { ArrowLeft, Clock, History, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -10,25 +10,24 @@ const TokenHistory = () => {
   const [totalPages, setTotalPages] = useState(1);
   const navigate = useNavigate();
 
-  const fetchHistory = async (pageToFetch = 1) => {
+  const fetchHistory = useCallback(async (pageToFetch = 1) => {
     setLoading(true);
     try {
       const res = await api.get(`/tokens/history?page=${pageToFetch}&limit=10`);
       if (res.data.data.tokens) {
         setHistory(res.data.data.tokens);
         setTotalPages(res.data.data.pagination?.pages || 1);
-        setPage(pageToFetch);
       }
     } catch (err) {
       console.error('Error fetching token history:', err);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchHistory(page);
-  }, []);
+  }, [fetchHistory, page]);
 
   const getStatusBadge = (status) => {
     const map = {
@@ -71,7 +70,7 @@ const TokenHistory = () => {
           <div className="empty-state">
             <Clock size={48} />
             <h3>No History Found</h3>
-            <p>You haven't booked any tokens yet.</p>
+            <p>You haven&apos;t booked any tokens yet.</p>
             <Link to="/book-token" className="btn btn-primary mt-4">
               Book a Token
             </Link>
@@ -123,7 +122,7 @@ const TokenHistory = () => {
                 <button
                   className="btn btn-ghost btn-sm"
                   disabled={page === 1 || loading}
-                  onClick={() => fetchHistory(page - 1)}
+                  onClick={() => setPage(page - 1)}
                 >
                   <ChevronLeft size={16} /> Previous
                 </button>
@@ -133,7 +132,7 @@ const TokenHistory = () => {
                 <button
                   className="btn btn-ghost btn-sm"
                   disabled={page === totalPages || loading}
-                  onClick={() => fetchHistory(page + 1)}
+                  onClick={() => setPage(page + 1)}
                 >
                   Next <ChevronRight size={16} />
                 </button>
