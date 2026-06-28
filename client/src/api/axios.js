@@ -3,6 +3,7 @@ import toast from 'react-hot-toast';
 
 const api = axios.create({
   baseURL: '/api',
+  withCredentials: true, // Send httpOnly cookies with every request
   headers: {
     'Content-Type': 'application/json',
   },
@@ -42,44 +43,29 @@ api.interceptors.response.use(
         if (!isAuthEndpoint && window.location.pathname !== '/login') {
           localStorage.removeItem('sq_token');
           localStorage.removeItem('sq_user');
-          localStorage.removeItem('sq_refresh_token');
           window.location.href = '/login';
         }
         return Promise.reject(error);
       }
 
-      // Attempt token refresh
-      const refreshToken = localStorage.getItem('sq_refresh_token');
-      if (refreshToken) {
-        originalRequest._retry = true;
+      // Attempt token refresh (refresh token is in httpOnly cookie — sent automatically)
+      originalRequest._retry = true;
 
-        try {
-          const res = await axios.post('/api/auth/refresh', { refreshToken });
-          const { token: newToken, refreshToken: newRefreshToken } = res.data.data;
+      try {
+        const res = await axios.post('/api/auth/refresh', {}, { withCredentials: true });
+        const { token: newToken } = res.data.data;
 
-          localStorage.setItem('sq_token', newToken);
-          if (newRefreshToken) {
-            localStorage.setItem('sq_refresh_token', newRefreshToken);
-          }
+        localStorage.setItem('sq_token', newToken);
 
-          originalRequest.headers.Authorization = `Bearer ${newToken}`;
-          return api(originalRequest);
-        } catch (refreshError) {
-          localStorage.removeItem('sq_token');
-          localStorage.removeItem('sq_user');
-          localStorage.removeItem('sq_refresh_token');
-          if (window.location.pathname !== '/login') {
-            window.location.href = '/login';
-          }
-          return Promise.reject(refreshError);
-        }
-      } else {
-        // No refresh token available — redirect to login
+        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+        return api(originalRequest);
+      } catch (refreshError) {
         localStorage.removeItem('sq_token');
         localStorage.removeItem('sq_user');
         if (window.location.pathname !== '/login') {
           window.location.href = '/login';
         }
+        return Promise.reject(refreshError);
       }
     }
 
