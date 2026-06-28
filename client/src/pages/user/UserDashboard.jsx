@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useSocket } from '../../context/SocketContext';
@@ -22,7 +22,7 @@ const UserDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [confirmCancelId, setConfirmCancelId] = useState(null);
 
-  const fetchTokens = async () => {
+  const fetchTokens = useCallback(async () => {
     try {
       const res = await api.get('/tokens/my-tokens');
       setTokens(res.data.data.tokens);
@@ -31,11 +31,11 @@ const UserDashboard = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchTokens();
-  }, []);
+  }, [fetchTokens]);
 
   // Listen for real-time updates
   useEffect(() => {
@@ -83,7 +83,7 @@ const UserDashboard = () => {
       socket.off('token:approaching', handleTokenApproaching);
       socket.off('queue:update', handleQueueUpdate);
     };
-  }, [socket, tokens.length]);
+  }, [socket, tokens, fetchTokens]);
 
   const handleCancel = async (tokenId) => {
     try {
