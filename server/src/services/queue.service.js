@@ -10,7 +10,7 @@ const logger = require('../utils/logger');
 const queueEvents = new EventEmitter();
 
 /**
- * Get queue for a service
+ * Get queue for a service (full detail — for admins and internal use)
  */
 const getQueueForService = async (serviceId) => {
   // Fetch serving and waiting separately — avoids fragile alphabetical sort on status
@@ -37,6 +37,41 @@ const getQueueForService = async (serviceId) => {
 
   return queue;
 };
+
+/**
+ * Redact a user's name for public display (first name + last initial).
+ * e.g. "Abhay Fulsavanage" → "Abhay F."
+ */
+const redactName = (name) => {
+  if (!name) return 'Guest';
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0];
+  return `${parts[0]} ${parts[parts.length - 1][0]}.`;
+};
+
+/**
+ * Get queue for a service — PUBLIC / privacy-safe version.
+ * Strips emails entirely and redacts names to first name + last initial.
+ * Used by the unauthenticated LiveDisplay / queue-status endpoint.
+ */
+const getQueueForServicePublic = async (serviceId) => {
+  const queue = await getQueueForService(serviceId);
+
+  return queue.map((token) => ({
+    _id: token._id,
+    tokenNumber: token.tokenNumber,
+    status: token.status,
+    priority: token.priority,
+    createdAt: token.createdAt,
+    calledAt: token.calledAt,
+    serviceId: token.serviceId,
+    // Redacted user info — no email, name shortened
+    userId: token.userId
+      ? { _id: token.userId._id, name: redactName(token.userId.name) }
+      : null,
+  }));
+};
+
 
 /**
  * Get queue stats for a service
@@ -159,7 +194,13 @@ const bookToken = async (userId, serviceId, priority = 'normal', bypassDuplicate
 };
 
 /**
- * Call next token — finds the next waiting token (emergency first)
+ * Call next token — finds the next waiting token (emergency first).
+ *
+ * KNOWN LIMITATION: This models a single active counter per service.
+ * Force-completing ALL currently serving tokens means a multi-desk setup
+ * (e.g. 3 doctors under "General OPD") would have "call next" at one desk
+ * silently mark other desks' in-progress patients as completed.
+ * Supporting multi-counter would require a counterId/deskId parameter.
  */
 const callNextToken = async (serviceId) => {
   // Complete ALL currently serving tokens to prevent stuck tokens
@@ -407,6 +448,7 @@ const getTokenPositions = async (tokens) => {
 module.exports = {
   queueEvents,
   getQueueForService,
+  getQueueForServicePublic,
   getQueueStats,
   getTokenPosition,
   getTokenPositions,
