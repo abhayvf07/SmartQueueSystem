@@ -3,13 +3,10 @@ import { Link } from 'react-router-dom';
 import api from '../../api/axios';
 import { useSocket } from '../../context/SocketContext';
 import {
-  Users,
   Clock,
   CheckCircle2,
   AlertTriangle,
-  Ticket,
   TrendingUp,
-  BarChart3,
   ArrowRight,
 } from 'lucide-react';
 
@@ -38,7 +35,7 @@ const AdminDashboard = () => {
     fetchData();
   }, [fetchData]);
 
-  // Real-time updates — refresh dashboard when queue changes
+  // Real-time updates — refresh dashboard when queue changes (debounced)
   useEffect(() => {
     if (!socket) return;
 
@@ -49,12 +46,18 @@ const AdminDashboard = () => {
       });
     }
 
-    const handleUpdate = () => fetchData();
+    // Debounce: collapse rapid-fire socket events into a single refetch
+    let debounceTimer = null;
+    const handleUpdate = () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => fetchData(), 500);
+    };
 
     socket.on('queue:update', handleUpdate);
     socket.on('queue:stats', handleUpdate);
 
     return () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
       if (stats?.serviceBreakdown) {
         stats.serviceBreakdown.forEach((s) => {
           socket.emit('leave:service', s._id);
