@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useSocket } from '../../context/SocketContext';
 import api from '../../api/axios';
@@ -15,7 +15,7 @@ const QueueTracker = () => {
 
   const isValidId = /^[0-9a-fA-F]{24}$/.test(serviceId);
 
-  const fetchQueue = async () => {
+  const fetchQueue = useCallback(async () => {
     if (!isValidId) return;
     try {
       const res = await api.get(`/tokens/queue-status/${serviceId}`);
@@ -26,7 +26,7 @@ const QueueTracker = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [isValidId, serviceId]);
 
   useEffect(() => {
     if (!isValidId) {
@@ -36,7 +36,7 @@ const QueueTracker = () => {
     fetchQueue();
     joinService(serviceId);
     return () => leaveService(serviceId);
-  }, [serviceId, isValidId]);
+  }, [serviceId, isValidId, fetchQueue, joinService, leaveService]);
 
   // Real-time updates
   useEffect(() => {
