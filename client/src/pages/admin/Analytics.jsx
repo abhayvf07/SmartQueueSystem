@@ -4,7 +4,6 @@ import {
   BarChart3,
   Clock,
   TrendingUp,
-  Users,
   CheckCircle2,
   Zap,
   Calendar,
@@ -14,13 +13,9 @@ import {
   Brain,
   Sparkles,
   SmilePlus,
-  Meh,
-  Frown,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
-  BarChart,
-  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -57,50 +52,50 @@ const Analytics = () => {
   const [dateRange, setDateRange] = useState('today');
   const [customDates, setCustomDates] = useState({ start: '', end: '' });
 
-  const buildDateQuery = () => {
-    if (dateRange === 'today') {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      return `startDate=${today.toISOString()}`;
-    }
-    if (dateRange === '7d') {
-      const start = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-      return `startDate=${start.toISOString()}`;
-    }
-    if (dateRange === '30d') {
-      const start = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-      return `startDate=${start.toISOString()}`;
-    }
-    if (dateRange === 'custom' && customDates.start && customDates.end) {
-      return `startDate=${new Date(customDates.start).toISOString()}&endDate=${new Date(customDates.end).toISOString()}`;
-    }
-    return '';
-  };
-
-  const fetchAll = async () => {
-    try {
-      const dateQuery = buildDateQuery();
-      const serviceQuery = selectedService ? `serviceId=${selectedService}` : '';
-      const qs = [serviceQuery, dateQuery].filter(Boolean).join('&');
-
-      const results = await Promise.allSettled([
-        api.get(`/admin/analytics${qs ? `?${qs}` : ''}`),
-        api.get('/services'),
-        api.get(`/admin/forecast${selectedService ? `?serviceId=${selectedService}` : ''}`),
-        api.get(`/admin/sentiment${qs ? `?${qs}` : ''}`),
-      ]);
-      setAnalytics(results[0].status === 'fulfilled' ? results[0].value.data.data : null);
-      setServices(results[1].status === 'fulfilled' ? results[1].value.data.data.services : []);
-      setForecast(results[2].status === 'fulfilled' ? results[2].value.data.data : null);
-      setSentiment(results[3].status === 'fulfilled' ? results[3].value.data.data : null);
-    } catch (err) {
-      console.error('Analytics fetch error:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
+    const buildDateQuery = () => {
+      if (dateRange === 'today') {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        return `startDate=${today.toISOString()}`;
+      }
+      if (dateRange === '7d') {
+        const start = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+        return `startDate=${start.toISOString()}`;
+      }
+      if (dateRange === '30d') {
+        const start = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+        return `startDate=${start.toISOString()}`;
+      }
+      if (dateRange === 'custom' && customDates.start && customDates.end) {
+        return `startDate=${new Date(customDates.start).toISOString()}&endDate=${new Date(customDates.end).toISOString()}`;
+      }
+      return '';
+    };
+
+    const fetchAll = async () => {
+      try {
+        const dateQuery = buildDateQuery();
+        const serviceQuery = selectedService ? `serviceId=${selectedService}` : '';
+        const qs = [serviceQuery, dateQuery].filter(Boolean).join('&');
+
+        const results = await Promise.allSettled([
+          api.get(`/admin/analytics${qs ? `?${qs}` : ''}`),
+          api.get('/services'),
+          api.get(`/admin/forecast${selectedService ? `?serviceId=${selectedService}` : ''}`),
+          api.get(`/admin/sentiment${qs ? `?${qs}` : ''}`),
+        ]);
+        setAnalytics(results[0].status === 'fulfilled' ? results[0].value.data.data : null);
+        setServices(results[1].status === 'fulfilled' ? results[1].value.data.data.services : []);
+        setForecast(results[2].status === 'fulfilled' ? results[2].value.data.data : null);
+        setSentiment(results[3].status === 'fulfilled' ? results[3].value.data.data : null);
+      } catch (err) {
+        console.error('Analytics fetch error:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     if (dateRange === 'custom' && (!customDates.start || !customDates.end)) return;
     setLoading(true);
     fetchAll();
@@ -278,7 +273,7 @@ const Analytics = () => {
           <div className="card-header">
             <div>
               <h2 className="card-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                Tomorrow's Forecast
+                Tomorrow&apos;s Forecast
                 <span style={{
                   display: 'inline-flex',
                   alignItems: 'center',
@@ -455,7 +450,7 @@ const Analytics = () => {
           <div className="card-header">
             <div>
               <h2 className="card-title">Token Status Distribution</h2>
-              <p className="card-subtitle">Today's real-time statuses</p>
+              <p className="card-subtitle">Today&apos;s real-time statuses</p>
             </div>
             <Activity size={20} style={{ color: 'var(--primary)' }} />
           </div>
