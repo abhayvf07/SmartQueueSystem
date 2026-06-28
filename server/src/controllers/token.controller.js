@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 const Token = require("../models/Token");
 const queueService = require("../services/queue.service");
 const notificationService = require("../services/notification.service");
-const anomalyService = require("../services/anomaly.service");
+const { getCachedAnomaly } = require("../services/anomalyCache");
 const ApiError = require("../utils/ApiError");
 
 /**
@@ -34,8 +34,8 @@ const bookToken = async (req, res, next) => {
       .populate("serviceId", "name prefix capacityPerHour")
       .lean();
 
-    // AI-powered anomaly detection for overload alerts (replaces hardcoded threshold)
-    const anomaly = await anomalyService.detectAnomaly(serviceId);
+    // AI-powered anomaly detection from cache (no longer blocks request path)
+    const anomaly = getCachedAnomaly(serviceId);
     if (anomaly.isAnomaly) {
       const serviceObj = fullToken.serviceId;
       notificationService.broadcastOverloadAlert(serviceId, {
@@ -108,7 +108,7 @@ const getMyTokens = async (req, res, next) => {
 
 /**
  * GET /api/tokens/queue-status/:serviceId
- * Get live queue status for a service
+ * Get live queue status for a service (PUBLIC — returns redacted user info)
  */
 const getQueueStatus = async (req, res, next) => {
   try {
@@ -119,7 +119,7 @@ const getQueueStatus = async (req, res, next) => {
     }
 
     const [queue, stats] = await Promise.all([
-      queueService.getQueueForService(serviceId),
+      queueService.getQueueForServicePublic(serviceId),
       queueService.getQueueStats(serviceId),
     ]);
 
