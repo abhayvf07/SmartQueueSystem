@@ -213,7 +213,7 @@ const UserDashboard = () => {
                   </div>
                   <div className="flex flex-col items-end gap-2">
                     {getStatusBadge(token.status)}
-                    {token.priority === 'emergency' && (
+                    {token.priority === 1 && (
                       <span className="badge badge-emergency">
                         <AlertTriangle size={12} /> Emergency
                       </span>

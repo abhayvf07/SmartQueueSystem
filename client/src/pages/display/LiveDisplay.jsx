@@ -225,7 +225,7 @@ const LiveDisplay = () => {
                         >
                           {token.tokenNumber}
                         </div>
-                        {token.priority === 'emergency' && (
+                        {token.priority === 1 && (
                           <span className="badge badge-emergency" style={{ fontSize: '0.6rem' }}>
                             URGENT
                           </span>

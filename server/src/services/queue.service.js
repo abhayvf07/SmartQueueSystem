@@ -9,33 +9,42 @@ const logger = require('../utils/logger');
 // Event emitter to decouple from notification service (avoids circular require)
 const queueEvents = new EventEmitter();
 
+// Helper: get IST "start of today" as a Date object
+const getISTStartOfDay = () => {
+  const now = new Date();
+  // Format current date in IST
+  const istDateStr = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }); // "YYYY-MM-DD"
+  // Create a Date at midnight IST = that date at 00:00 IST = date - 5:30 in UTC
+  const [y, m, d] = istDateStr.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d, 0, 0, 0, 0) - (5.5 * 60 * 60 * 1000));
+};
+
+// Helper: get IST "end of today" (23:59:59.999 IST) as a Date object
+const getISTEndOfDay = () => {
+  const now = new Date();
+  const istDateStr = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+  const [y, m, d] = istDateStr.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d, 23, 59, 59, 999) - (5.5 * 60 * 60 * 1000));
+};
+
 /**
  * Get queue for a service (full detail — for admins and internal use)
+ * Single query with { priority: -1, createdAt: 1 } sort (emergency=1 first, then FIFO)
  */
 const getQueueForService = async (serviceId) => {
-  // Fetch serving and waiting separately — avoids fragile alphabetical sort on status
   const [servingTokens, waitingTokens] = await Promise.all([
     Token.find({ serviceId, status: 'serving' })
       .populate('userId', 'name email')
       .populate('serviceId', 'name prefix')
       .lean(),
     Token.find({ serviceId, status: 'waiting' })
-      .sort({ createdAt: 1 })
+      .sort({ priority: -1, createdAt: 1 }) // emergency (1) first, then FIFO
       .populate('userId', 'name email')
       .populate('serviceId', 'name prefix')
       .lean(),
   ]);
 
-  // Sort waiting: emergency first (stable), then FIFO (already sorted by createdAt)
-  waitingTokens.sort((a, b) => {
-    if (a.priority === 'emergency' && b.priority !== 'emergency') return -1;
-    if (a.priority !== 'emergency' && b.priority === 'emergency') return 1;
-    return 0; // preserve createdAt order from DB sort
-  });
-
-  const queue = [...servingTokens, ...waitingTokens];
-
-  return queue;
+  return [...servingTokens, ...waitingTokens];
 };
 
 /**
@@ -62,6 +71,7 @@ const getQueueForServicePublic = async (serviceId) => {
     tokenNumber: token.tokenNumber,
     status: token.status,
     priority: token.priority,
+    priorityLabel: token.priority === 1 ? 'emergency' : 'normal',
     createdAt: token.createdAt,
     calledAt: token.calledAt,
     serviceId: token.serviceId,
@@ -78,13 +88,15 @@ const getQueueForServicePublic = async (serviceId) => {
  */
 const getQueueStats = async (serviceId) => {
   const sId = serviceId._id || serviceId;
+  const todayIST = getISTStartOfDay();
+
   const [waitingCount, servingToken, completedToday] = await Promise.all([
     Token.countDocuments({ serviceId: sId, status: 'waiting' }),
     Token.findOne({ serviceId: sId, status: 'serving' }).populate('userId', 'name').lean(),
     Token.countDocuments({
       serviceId: sId,
       status: 'completed',
-      completedAt: { $gte: new Date(new Date().setHours(0, 0, 0, 0)) },
+      completedAt: { $gte: todayIST },
     }),
   ]);
 
@@ -95,7 +107,7 @@ const getQueueStats = async (serviceId) => {
         serviceId: new mongoose.Types.ObjectId(sId),
         status: 'completed',
         calledAt: { $ne: null },
-        completedAt: { $gte: new Date(new Date().setHours(0, 0, 0, 0)) },
+        completedAt: { $gte: todayIST },
       },
     },
     {
@@ -121,18 +133,19 @@ const getQueueStats = async (serviceId) => {
 /**
  * Compute dynamic position for a token in its service queue.
  * Position = count of waiting tokens ahead (emergency tokens first).
+ * With numeric priority: emergency=1 > normal=0
  */
 const getTokenPosition = async (token) => {
   if (token.status !== 'waiting') return 0;
 
   let aheadQuery;
 
-  if (token.priority === 'emergency') {
+  if (token.priority === 1) {
     // Emergency token: only other emergency tokens created before this one are ahead
     aheadQuery = {
       serviceId: token.serviceId,
       status: 'waiting',
-      priority: 'emergency',
+      priority: 1,
       createdAt: { $lt: token.createdAt },
     };
   } else {
@@ -141,8 +154,8 @@ const getTokenPosition = async (token) => {
       serviceId: token.serviceId,
       status: 'waiting',
       $or: [
-        { priority: 'emergency' },
-        { priority: 'normal', createdAt: { $lt: token.createdAt } },
+        { priority: 1 },
+        { priority: 0, createdAt: { $lt: token.createdAt } },
       ],
     };
   }
@@ -154,7 +167,7 @@ const getTokenPosition = async (token) => {
 /**
  * Book a new token — with duplicate prevention and atomic counter
  */
-const bookToken = async (userId, serviceId, priority = 'normal', bypassDuplicateCheck = false) => {
+const bookToken = async (userId, serviceId, priority = 0, bypassDuplicateCheck = false) => {
   // Check service exists and is active
   const service = await Service.findById(serviceId);
   if (!service || !service.active) {
@@ -176,9 +189,8 @@ const bookToken = async (userId, serviceId, priority = 'normal', bypassDuplicate
   // Generate atomic token number
   const tokenNumber = await generateTokenNumber(serviceId, service.prefix);
 
-  // Set expiry to the end of the current day (midnight)
-  const expiresAt = new Date();
-  expiresAt.setHours(23, 59, 59, 999);
+  // Set expiry to the end of the current day in IST
+  const expiresAt = getISTEndOfDay();
 
   const token = await Token.create({
     userId,
@@ -196,38 +208,32 @@ const bookToken = async (userId, serviceId, priority = 'normal', bypassDuplicate
 /**
  * Call next token — finds the next waiting token (emergency first).
  *
- * KNOWN LIMITATION: This models a single active counter per service.
- * Force-completing ALL currently serving tokens means a multi-desk setup
- * (e.g. 3 doctors under "General OPD") would have "call next" at one desk
- * silently mark other desks' in-progress patients as completed.
- * Supporting multi-counter would require a counterId/deskId parameter.
+ * Multi-counter support: If currentTokenId is provided, only that specific
+ * serving token is completed. If not provided (backward compat), completes all serving tokens.
  */
-const callNextToken = async (serviceId) => {
-  // Complete ALL currently serving tokens to prevent stuck tokens
-  await Token.updateMany(
-    { serviceId, status: 'serving' },
-    { status: 'completed', completedAt: new Date() }
-  );
+const callNextToken = async (serviceId, currentTokenId = null) => {
+  if (currentTokenId) {
+    // Complete only the specific token being served at THIS counter
+    await Token.findOneAndUpdate(
+      { _id: currentTokenId, serviceId, status: 'serving' },
+      { status: 'completed', completedAt: new Date() }
+    );
+  } else {
+    // Backward compat: complete ALL currently serving tokens
+    await Token.updateMany(
+      { serviceId, status: 'serving' },
+      { status: 'completed', completedAt: new Date() }
+    );
+  }
 
-  // Find next: try emergency tokens first (FIFO within priority)
-  let nextToken = await Token.findOneAndUpdate(
-    { serviceId, status: 'waiting', priority: 'emergency' },
+  // Find next: priority -1 sorts emergency (1) first, then normal (0), FIFO within each
+  const nextToken = await Token.findOneAndUpdate(
+    { serviceId, status: 'waiting' },
     { status: 'serving', calledAt: new Date() },
-    { new: true, sort: { createdAt: 1 } }
+    { new: true, sort: { priority: -1, createdAt: 1 } }
   )
     .populate('userId', 'name email')
     .populate('serviceId', 'name prefix capacityPerHour');
-
-  // If no emergency token, find normal
-  if (!nextToken) {
-    nextToken = await Token.findOneAndUpdate(
-      { serviceId, status: 'waiting' },
-      { status: 'serving', calledAt: new Date() },
-      { new: true, sort: { createdAt: 1 } }
-    )
-      .populate('userId', 'name email')
-      .populate('serviceId', 'name prefix capacityPerHour');
-  }
 
   if (!nextToken) {
     throw new ApiError(404, 'No waiting tokens in queue.');
@@ -282,6 +288,7 @@ const cancelToken = async (tokenId, userId) => {
 
 /**
  * Get analytics — avg wait time, throughput, peak hours
+ * Uses timezone: 'Asia/Kolkata' for $hour aggregation
  */
 const getAnalytics = async (serviceId, startDate, endDate) => {
   const matchStage = { status: 'completed' };
@@ -291,8 +298,7 @@ const getAnalytics = async (serviceId, startDate, endDate) => {
     if (startDate) matchStage.completedAt.$gte = new Date(startDate);
     if (endDate) matchStage.completedAt.$lte = new Date(endDate);
   } else {
-    const today = new Date(new Date().setHours(0, 0, 0, 0));
-    matchStage.completedAt = { $gte: today };
+    matchStage.completedAt = { $gte: getISTStartOfDay() };
   }
   if (serviceId) {
     const sId = serviceId._id ? serviceId._id.toString() : serviceId.toString();
@@ -320,7 +326,7 @@ const getAnalytics = async (serviceId, startDate, endDate) => {
       { $match: matchStage },
       {
         $group: {
-          _id: { $hour: '$createdAt' },
+          _id: { $hour: { date: '$createdAt', timezone: 'Asia/Kolkata' } },
           count: { $sum: 1 },
         },
       },
@@ -414,22 +420,15 @@ const getTokenPositions = async (tokens) => {
 
   const positions = new Map(tokens.map(t => [t._id.toString(), 0]));
 
-  // For each service, compute positions in bulk with a single aggregation
+  // For each service, compute positions in bulk with a single query
   for (const [sid, serviceTokens] of Object.entries(byService)) {
-    // Get all waiting tokens for this service, sorted by priority and createdAt
+    // Get all waiting tokens for this service, sorted by priority desc + createdAt asc
     const allWaiting = await Token.find({
       serviceId: sid,
       status: 'waiting',
-    }).sort({ createdAt: 1 }).select('_id priority createdAt').lean();
+    }).sort({ priority: -1, createdAt: 1 }).select('_id priority createdAt').lean();
 
-    // Sort: emergency first, then normal (stable sort preserves createdAt within each priority)
-    allWaiting.sort((a, b) => {
-      if (a.priority === 'emergency' && b.priority !== 'emergency') return -1;
-      if (a.priority !== 'emergency' && b.priority === 'emergency') return 1;
-      return 0;
-    });
-
-    // Build position map from sorted order
+    // Build position map from sorted order (already sorted correctly by DB)
     const posMap = new Map();
     allWaiting.forEach((t, idx) => {
       posMap.set(t._id.toString(), idx + 1); // 1-based

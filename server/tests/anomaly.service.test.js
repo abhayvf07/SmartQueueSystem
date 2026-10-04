@@ -59,9 +59,7 @@ describe('anomaly.service', () => {
     });
 
     it('should detect anomaly when current wait exceeds Z-score threshold', async () => {
-      // Historical data: 10 values, waitTimeMs = 600,000 (10 min) and some variation to have stdDev > 0
-      // Mean ~ 10, stdDev ~ 2.
-      // E.g., [6, 8, 10, 10, 10, 10, 10, 10, 12, 14] min => [360k, 480k, 600k, ..., 840k] ms
+      // Historical data: 10 values with variation
       mockTokenAggregate.mockResolvedValueOnce([
         { waitTimeMs: 6 * 60000 }, { waitTimeMs: 8 * 60000 },
         { waitTimeMs: 10 * 60000 }, { waitTimeMs: 10 * 60000 },
@@ -69,21 +67,21 @@ describe('anomaly.service', () => {
         { waitTimeMs: 10 * 60000 }, { waitTimeMs: 10 * 60000 },
         { waitTimeMs: 12 * 60000 }, { waitTimeMs: 14 * 60000 }
       ]);
-      // Current wait (20 min) -> Z-score > 2
-      mockTokenAggregate.mockResolvedValueOnce([{ avgWait: 20 * 60000 }]);
+      // Current wait (20 min) with count -> Z-score > 2
+      mockTokenAggregate.mockResolvedValueOnce([{ avgWait: 20 * 60000, count: 5 }]);
       
       const result = await anomalyService.detectAnomaly('507f1f77bcf86cd799439011');
       
       expect(result.isAnomaly).toBe(true);
       expect(result.zScore).toBeGreaterThan(2);
-      expect(result.method).toBe('z_score');
+      expect(result.method).toBe('z_score_sem');
     });
 
     it('should NOT detect anomaly when current wait is within normal range', async () => {
       // Historical data
       mockTokenAggregate.mockResolvedValueOnce(Array(10).fill({ waitTimeMs: 10 * 60000 }));
-      // Current wait (10 min) -> Z-score = 0
-      mockTokenAggregate.mockResolvedValueOnce([{ avgWait: 10 * 60000 }]);
+      // Current wait (10 min) with count -> Z-score = 0
+      mockTokenAggregate.mockResolvedValueOnce([{ avgWait: 10 * 60000, count: 5 }]);
       
       const result = await anomalyService.detectAnomaly('507f1f77bcf86cd799439011');
       
@@ -99,8 +97,8 @@ describe('anomaly.service', () => {
         stdDevMinutes: 0, // All waits exactly 10 min
         count: 50
       }]);
-      // Current wait (15) -> Z-score usually infinite, should fallback to mean threshold
-      mockTokenAggregate.mockResolvedValueOnce([{ avgWaitMinutes: 15 }]);
+      // Current wait (15 min) with count
+      mockTokenAggregate.mockResolvedValueOnce([{ avgWait: 15 * 60000, count: 3 }]);
       
       const result = await anomalyService.detectAnomaly('507f1f77bcf86cd799439011');
       

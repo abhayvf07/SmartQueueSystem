@@ -1,10 +1,11 @@
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { GoogleGenerativeAI, SchemaType } = require('@google/generative-ai');
 const logger = require('../utils/logger');
 
 /**
  * AI Feature 3: NLP-based service auto-classification using Gemini (zero-shot).
  * When an admin creates a new service, this classifies the service type
  * and suggests capacity + prefix based on the name and description.
+ * Uses Gemini native JSON mode (responseMimeType + responseSchema).
  */
 
 const VALID_CATEGORIES = ['medical', 'banking', 'government', 'retail', 'education', 'telecom', 'hospitality', 'other'];
@@ -32,7 +33,7 @@ const PREFIX_SUGGESTIONS = {
 };
 
 /**
- * Classify a service using Gemini zero-shot NLP.
+ * Classify a service using Gemini zero-shot NLP with native JSON mode.
  * @param {string} name - Service name
  * @param {string} description - Service description
  * @returns {{ category, suggestedCapacity, suggestedPrefix, reasoning, prefixOptions }}
@@ -49,14 +50,30 @@ const classifyService = async (name, description = '') => {
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({
       model: 'gemini-2.5-flash',
-      systemInstruction: `You are a service classification AI. Given a service name and description for a queue management system, classify it into exactly one category and suggest an appropriate 1-3 character prefix.
-
-You MUST respond with valid JSON only, no markdown or explanation:
-{
-  "category": "one of: medical, banking, government, retail, education, telecom, hospitality, other",
-  "suggestedPrefix": "1-3 uppercase letters",
-  "reasoning": "brief explanation of classification"
-}`,
+      systemInstruction: `You are a service classification AI. Given a service name and description for a queue management system, classify it into exactly one category and suggest an appropriate 1-3 character prefix.`,
+      // Native JSON mode — no markdown code block stripping needed
+      generationConfig: {
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: SchemaType.OBJECT,
+          properties: {
+            category: {
+              type: SchemaType.STRING,
+              description: 'Service category classification',
+              enum: VALID_CATEGORIES,
+            },
+            suggestedPrefix: {
+              type: SchemaType.STRING,
+              description: '1-3 uppercase letters as token prefix',
+            },
+            reasoning: {
+              type: SchemaType.STRING,
+              description: 'Brief explanation of why this category was chosen',
+            },
+          },
+          required: ['category', 'suggestedPrefix', 'reasoning'],
+        },
+      },
     });
 
     const prompt = JSON.stringify({ name, description: description || 'No description provided' });
@@ -67,13 +84,7 @@ You MUST respond with valid JSON only, no markdown or explanation:
 
     if (!text) return fallbackClassification(name, description);
 
-    // Parse JSON response (handle markdown code blocks)
-    let cleaned = text.trim();
-    if (cleaned.startsWith('```')) {
-      cleaned = cleaned.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
-    }
-
-    const parsed = JSON.parse(cleaned);
+    const parsed = JSON.parse(text);
     const category = VALID_CATEGORIES.includes(parsed.category) ? parsed.category : 'other';
     const tier = CAPACITY_TIERS[category];
 

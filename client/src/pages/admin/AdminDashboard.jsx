@@ -240,7 +240,7 @@ const AdminDashboard = () => {
                   <td>{token.serviceId?.name || 'N/A'}</td>
                   <td>{getStatusBadge(token.status)}</td>
                   <td>
-                    {token.priority === 'emergency' ? (
+                    {token.priority === 1 ? (
                       <span className="badge badge-emergency">
                         <AlertTriangle size={10} /> Emergency
                       </span>

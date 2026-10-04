@@ -162,7 +162,7 @@ const QueueTracker = () => {
                         </td>
                         <td>{token.userId?.name || 'Anonymous'}</td>
                         <td>
-                          {token.priority === 'emergency' ? (
+                          {token.priority === 1 ? (
                             <span className="badge badge-emergency">
                               <AlertTriangle size={10} /> Emergency
                             </span>

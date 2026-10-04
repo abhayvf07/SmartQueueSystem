@@ -9,7 +9,11 @@ const getRecommendedService = async () => {
   const activeServices = await Service.find({ active: true }).lean();
   if (activeServices.length === 0) return [];
 
-  const today = new Date(new Date().setHours(0, 0, 0, 0));
+  // Helper: get IST start of today
+  const now = new Date();
+  const istDateStr = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+  const [y, mo, d] = istDateStr.split('-').map(Number);
+  const today = new Date(Date.UTC(y, mo - 1, d, 0, 0, 0, 0) - (5.5 * 60 * 60 * 1000));
   const serviceIds = activeServices.map(s => s._id);
 
   // Single aggregation: compute waiting, serving, completedToday, avgWait for all services at once

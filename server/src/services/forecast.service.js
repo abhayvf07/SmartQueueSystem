@@ -9,9 +9,12 @@ const logger = require('../utils/logger');
  *
  * EWMA (Exponential Weighted Moving Average) with alpha=0.3 is applied to the
  * matching-day data to generate a predicted busy hours distribution for tomorrow.
+ *
+ * All date operations use timezone: 'Asia/Kolkata' for correct IST hours.
  */
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const IST_TZ = 'Asia/Kolkata';
 
 /**
  * Get forecast for tomorrow's hourly traffic.
@@ -39,13 +42,14 @@ const getForecast = async (serviceId = null) => {
     }
 
     // Aggregate hourly token counts, filtering to matching day-of-week
+    // Using timezone: 'Asia/Kolkata' for correct IST hours
     const hourlyData = await Token.aggregate([
       { $match: matchFilter },
       {
         $project: {
-          hour: { $hour: '$createdAt' },
-          dayOfWeek: { $dayOfWeek: '$createdAt' }, // 1=Sunday in MongoDB
-          dateStr: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+          hour: { $hour: { date: '$createdAt', timezone: IST_TZ } },
+          dayOfWeek: { $dayOfWeek: { date: '$createdAt', timezone: IST_TZ } }, // 1=Sunday in MongoDB
+          dateStr: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt', timezone: IST_TZ } },
         },
       },
       {
@@ -85,8 +89,8 @@ const getForecast = async (serviceId = null) => {
         { $match: matchFilter },
         {
           $project: {
-            hour: { $hour: '$createdAt' },
-            dateStr: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+            hour: { $hour: { date: '$createdAt', timezone: IST_TZ } },
+            dateStr: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt', timezone: IST_TZ } },
           },
         },
         {

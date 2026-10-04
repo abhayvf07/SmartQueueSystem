@@ -18,7 +18,6 @@ const getAllTokens = async (req, res, next) => {
 
     // Whitelist validation to prevent NoSQL injection
     const validStatuses = ['waiting', 'serving', 'completed', 'cancelled', 'skipped'];
-    const validPriorities = ['normal', 'emergency'];
 
     if (status) {
       if (!validStatuses.includes(status)) throw new ApiError(400, 'Invalid status filter.');
@@ -28,9 +27,10 @@ const getAllTokens = async (req, res, next) => {
       if (!mongoose.Types.ObjectId.isValid(serviceId)) throw new ApiError(400, 'Invalid service ID.');
       filter.serviceId = serviceId;
     }
-    if (priority) {
-      if (!validPriorities.includes(priority)) throw new ApiError(400, 'Invalid priority filter.');
-      filter.priority = priority;
+    if (priority !== undefined && priority !== '') {
+      const numPriority = Number(priority);
+      if (![0, 1].includes(numPriority)) throw new ApiError(400, 'Invalid priority filter. Use 0 (normal) or 1 (emergency).');
+      filter.priority = numPriority;
     }
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -70,12 +70,13 @@ const getAllTokens = async (req, res, next) => {
 const callNext = async (req, res, next) => {
   try {
     const { serviceId } = req.params;
+    const { currentTokenId } = req.body; // optional: for multi-counter support
 
     if (!mongoose.Types.ObjectId.isValid(serviceId)) {
       throw new ApiError(400, 'Invalid service ID.');
     }
 
-    const calledToken = await queueService.callNextToken(serviceId);
+    const calledToken = await queueService.callNextToken(serviceId, currentTokenId || null);
 
     // Notify the user whose token was called
     if (calledToken.userId) {
@@ -198,7 +199,7 @@ const createEmergencyToken = async (req, res, next) => {
     const targetUserId = userId || req.user._id;
     const bypassCheck = targetUserId.toString() === req.user._id.toString();
 
-    const token = await queueService.bookToken(targetUserId, serviceId, 'emergency', bypassCheck);
+    const token = await queueService.bookToken(targetUserId, serviceId, 1, bypassCheck);
 
     // Broadcast
     const queue = await queueService.getQueueForService(serviceId);
@@ -246,7 +247,11 @@ const getAnalytics = async (req, res, next) => {
       if (startDate) matchStage.createdAt.$gte = new Date(startDate);
       if (endDate) matchStage.createdAt.$lte = new Date(endDate);
     } else {
-      const today = new Date(new Date().setHours(0, 0, 0, 0));
+      // Use IST start of day
+      const now = new Date();
+      const istDateStr = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+      const [y, mo, d] = istDateStr.split('-').map(Number);
+      const today = new Date(Date.UTC(y, mo - 1, d, 0, 0, 0, 0) - (5.5 * 60 * 60 * 1000));
       matchStage.createdAt = { $gte: today };
     }
 

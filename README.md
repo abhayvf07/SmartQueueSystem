@@ -69,7 +69,7 @@ I spent a lot of time on this part and it's honestly what makes this project dif
 
 - **Context-aware chatbot (Gemini AI)** — doesn't just answer generic questions, it actually pulls live queue data from the database and tells users their exact position, real wait times and service recommendations
 - **Auto-classification for services** — admin types a service name and description, Gemini suggests the token prefix, capacity per hour and explains why
-- **Smart wait time prediction** — uses a weighted average: 70% recent throughput (last hour), 30% historical average (last 14 days). Much more accurate than a fixed calculation
+- **Smart wait time prediction** — uses today's average wait time from completed tokens, with a capacityPerHour fallback for cold starts. Multiplied by dynamic queue position for per-token estimates
 - **Congestion anomaly detection** — uses Z-scores based on 7-day rolling mean and standard deviation to flag when a queue is abnormally slow, instead of using hardcoded thresholds
 - **Traffic forecasting** — EWMA-based 24-hour prediction for the next day, filtered by day-of-week so weekends don't mess up weekday forecasts
 - **Sentiment monitoring** — every chatbot interaction gets classified as positive, neutral or frustrated. Aggregated in the admin panel so managers can actually see if users are getting frustrated with wait times
@@ -117,18 +117,18 @@ This one helps admins when they're adding a new queue service. Instead of manual
 
 So instead of an admin guessing that a dental service can handle 8 patients per hour, the AI looks at the service type and gives a reasonable estimate with reasoning.
 
-### 3. Smart Wait Time Prediction (Weighted Moving Average)
+### 3. Smart Wait Time Prediction (Position-Based with Adaptive Fallback)
 
 **Files involved:**
-- Service: `server/src/services/prediction.service.js`
+- Service: `server/src/services/queue.service.js` (`getEstimatedWaitTime`)
 
-This was one of the features I'm most happy with. Instead of just doing a simple "average wait time × queue position" calculation, I built a weighted prediction that adapts to what's actually happening:
+Instead of a static calculation, the system adapts to what's actually happening:
 
-- **70% weight** on recent throughput — average wait time of tokens completed in the last hour
-- **30% weight** on long-term history — average wait time over the past 14 days
-- The result gets scaled to the user's specific position in the queue
+- Uses the **average wait time** from today's completed tokens (calledAt − createdAt)
+- If no completed tokens today (cold start), falls back to **capacityPerHour** from the service config (e.g., 20/hour → 3 min per token)
+- Multiplies by the token's **dynamic queue position** (accounting for emergency priority ordering)
 
-The reason for this split is that recent data tells you what's happening *right now* (maybe it's a busy Monday morning), but you still want some historical context to smooth out weird spikes. 70/30 felt like the right balance after testing it.
+This approach is simple but effective — it naturally adjusts as the day progresses and real data flows in.
 
 ### 4. Congestion Anomaly Detection (Z-Score)
 
@@ -329,7 +329,7 @@ Returns statistical anomaly detection results (Z-scores) identifying unusually c
 ## Getting Started
 
 ### What you need
-- Node.js v18+
+- Node.js v20+ (LTS)
 - MongoDB (local or Atlas)
 
 ### Backend

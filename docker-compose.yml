@@ -50,8 +50,7 @@ services:
     image: mongo:7
     container_name: smartqueue-mongodb
     restart: unless-stopped
-    ports:
-      - "27017:27017"
+    # Port NOT exposed to host for security — only accessible within Docker network
     volumes:
       - mongo-data:/data/db
     healthcheck:

@@ -293,7 +293,7 @@ const QueueControl = () => {
                     <td style={{ fontWeight: 700, fontSize: '1rem' }}>{token.tokenNumber}</td>
                     <td>{token.userId?.name || 'N/A'}</td>
                     <td>
-                      {token.priority === 'emergency' ? (
+                      {token.priority === 1 ? (
                         <span className="badge badge-emergency">
                           <AlertTriangle size={10} /> Emergency
                         </span>

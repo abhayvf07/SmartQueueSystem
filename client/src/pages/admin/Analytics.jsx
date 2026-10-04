@@ -257,7 +257,7 @@ const Analytics = () => {
             <Zap size={22} />
           </div>
           <div>
-            <div className="stat-value">{priorityCounts.emergency || 0}</div>
+            <div className="stat-value">{priorityCounts[1] || 0}</div>
             <div className="stat-label">Emergency Tokens</div>
           </div>
         </div>

@@ -1,6 +1,7 @@
 /**
  * Unit tests for queue.service.js — pure logic functions.
  * Tests position calculation, wait time estimation, and priority ordering.
+ * Updated for numeric priority: 0 = normal, 1 = emergency.
  */
 
 // Mock mongoose before requiring anything
@@ -71,34 +72,34 @@ describe('queue.service', () => {
 
   describe('getTokenPosition', () => {
     it('should return 0 for non-waiting tokens', async () => {
-      const token = { status: 'serving', serviceId: 'svc1', priority: 'normal', createdAt: new Date() };
+      const token = { status: 'serving', serviceId: 'svc1', priority: 0, createdAt: new Date() };
       const position = await queueService.getTokenPosition(token);
       expect(position).toBe(0);
     });
 
     it('should return 1 for the first normal token with no one ahead', async () => {
       mockTokenCountDocuments.mockResolvedValue(0);
-      const token = { status: 'waiting', serviceId: 'svc1', priority: 'normal', createdAt: new Date() };
+      const token = { status: 'waiting', serviceId: 'svc1', priority: 0, createdAt: new Date() };
       const position = await queueService.getTokenPosition(token);
       expect(position).toBe(1);
     });
 
     it('should return correct position when there are tokens ahead', async () => {
       mockTokenCountDocuments.mockResolvedValue(3);
-      const token = { status: 'waiting', serviceId: 'svc1', priority: 'normal', createdAt: new Date() };
+      const token = { status: 'waiting', serviceId: 'svc1', priority: 0, createdAt: new Date() };
       const position = await queueService.getTokenPosition(token);
       expect(position).toBe(4); // 3 ahead + 1
     });
 
     it('should count only emergency tokens ahead for an emergency token', async () => {
       mockTokenCountDocuments.mockResolvedValue(1);
-      const token = { status: 'waiting', serviceId: 'svc1', priority: 'emergency', createdAt: new Date() };
+      const token = { status: 'waiting', serviceId: 'svc1', priority: 1, createdAt: new Date() };
       const position = await queueService.getTokenPosition(token);
       expect(position).toBe(2); // 1 emergency ahead + 1
 
-      // Verify the query only looks for emergency tokens
+      // Verify the query only looks for emergency tokens (priority: 1)
       const queryArg = mockTokenCountDocuments.mock.calls[0][0];
-      expect(queryArg.priority).toBe('emergency');
+      expect(queryArg.priority).toBe(1);
     });
   });
 
@@ -127,7 +128,7 @@ describe('queue.service', () => {
         }),
       });
 
-      const token = { status: 'waiting', serviceId: 'svc1', priority: 'normal', createdAt: new Date() };
+      const token = { status: 'waiting', serviceId: 'svc1', priority: 0, createdAt: new Date() };
       const service = { capacityPerHour: 12 };
       const stats = { avgWaitMinutes: 5 };
 

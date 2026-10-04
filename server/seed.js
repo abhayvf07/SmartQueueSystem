@@ -20,6 +20,8 @@ const seedData = async () => {
     await Service.deleteMany({});
     // Also clear counters so token numbering restarts from 1
     await mongoose.connection.collection('counters').deleteMany({});
+    // Clear old tokens (they may have string priority that won't work with new numeric schema)
+    await mongoose.connection.collection('tokens').deleteMany({});
 
     // Create admin user
     const admin = await User.create({

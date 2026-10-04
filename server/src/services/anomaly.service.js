@@ -7,8 +7,17 @@ const logger = require('../utils/logger');
  * Replaces hardcoded threshold = capacityPerHour / 2 with adaptive statistical detection.
  *
  * Computes rolling mean and standard deviation of wait times over the last 7 days per service.
- * When current wait time exceeds mean + 2 * stddev, flags as anomaly.
+ * EXCLUDES today's data from the baseline so current conditions don't pollute the reference.
+ * Uses σ/√n (standard error of the mean) for comparing today's average wait.
  */
+
+// Helper: get IST "start of today" as a Date object
+const getISTStartOfDay = () => {
+  const now = new Date();
+  const istDateStr = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+  const [y, m, d] = istDateStr.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d, 0, 0, 0, 0) - (5.5 * 60 * 60 * 1000));
+};
 
 /**
  * Detect anomalous congestion for a service.
@@ -19,16 +28,16 @@ const detectAnomaly = async (serviceId) => {
   try {
     const sId = new mongoose.Types.ObjectId(serviceId);
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-    const today = new Date(new Date().setHours(0, 0, 0, 0));
+    const todayIST = getISTStartOfDay();
 
-    // Get historical wait times (calledAt - createdAt) for completed tokens in the last 7 days
+    // Get historical wait times EXCLUDING today (baseline should not include current day)
     const historicalWaits = await Token.aggregate([
       {
         $match: {
           serviceId: sId,
           status: 'completed',
           calledAt: { $ne: null },
-          completedAt: { $gte: sevenDaysAgo },
+          completedAt: { $gte: sevenDaysAgo, $lt: todayIST },
         },
       },
       {
@@ -38,14 +47,14 @@ const detectAnomaly = async (serviceId) => {
       },
     ]);
 
-    // Get current average wait time (today's completed tokens)
+    // Get current average wait time (today's completed tokens) with count
     const currentWaitResult = await Token.aggregate([
       {
         $match: {
           serviceId: sId,
           status: 'completed',
           calledAt: { $ne: null },
-          completedAt: { $gte: today },
+          completedAt: { $gte: todayIST },
         },
       },
       {
@@ -75,7 +84,7 @@ const detectAnomaly = async (serviceId) => {
       };
     }
 
-    // Compute rolling mean and standard deviation
+    // Compute rolling mean and standard deviation from historical data (excluding today)
     const waitMinutes = historicalWaits.map(t => t.waitTimeMs / 60000).filter(w => w >= 0 && w < 480);
     const n = waitMinutes.length;
     const mean = waitMinutes.reduce((s, v) => s + v, 0) / n;
@@ -86,11 +95,14 @@ const detectAnomaly = async (serviceId) => {
     const currentWaitMinutes = currentWaitResult[0]
       ? currentWaitResult[0].avgWait / 60000
       : 0;
+    const todaySampleCount = currentWaitResult[0]?.count || 0;
 
-    // Z-score: how many standard deviations current wait is from the mean
-    const zScore = stdDev > 0 ? (currentWaitMinutes - mean) / stdDev : 0;
+    // Use σ/√n (standard error of the mean) for more accurate comparison
+    // This accounts for the fact that today's mean is based on n samples
+    const standardError = todaySampleCount > 1 ? stdDev / Math.sqrt(todaySampleCount) : stdDev;
+    const zScore = standardError > 0 ? (currentWaitMinutes - mean) / standardError : 0;
 
-    // Anomaly if Z-score > 2 (current wait is 2+ standard deviations above the rolling average)
+    // Anomaly if Z-score > 2 (current wait is 2+ standard errors above the rolling average)
     const isAnomaly = zScore > 2;
 
     return {
@@ -99,10 +111,11 @@ const detectAnomaly = async (serviceId) => {
       rollingMean: Math.round(mean * 10) / 10,
       stdDev: Math.round(stdDev * 10) / 10,
       zScore: Math.round(zScore * 100) / 100,
-      threshold: Math.round((mean + 2 * stdDev) * 10) / 10,
+      threshold: Math.round((mean + 2 * standardError) * 10) / 10,
       waitingCount,
       dataPoints: n,
-      method: 'z_score',
+      todaySamples: todaySampleCount,
+      method: 'z_score_sem',
     };
   } catch (error) {
     logger.error(`Anomaly detection error for service ${serviceId}: ${error.message}`);

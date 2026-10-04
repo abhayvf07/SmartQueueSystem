@@ -9,8 +9,6 @@ const api = axios.create({
   },
 });
 
-
-
 // Request interceptor — attach JWT
 api.interceptors.request.use(
   (config) => {
@@ -23,7 +21,22 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response interceptor — handle errors globally with auto-refresh
+// ── Refresh queue: prevents multiple concurrent refresh requests ──
+let isRefreshing = false;
+let refreshQueue = []; // queued requests waiting for token refresh
+
+const processQueue = (error, token = null) => {
+  refreshQueue.forEach(({ resolve, reject }) => {
+    if (error) {
+      reject(error);
+    } else {
+      resolve(token);
+    }
+  });
+  refreshQueue = [];
+};
+
+// Response interceptor — handle errors globally with queued auto-refresh
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -48,8 +61,21 @@ api.interceptors.response.use(
         return Promise.reject(error);
       }
 
-      // Attempt token refresh (refresh token is in httpOnly cookie — sent automatically)
+      // If already refreshing, queue this request
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          refreshQueue.push({ resolve, reject });
+        }).then((newToken) => {
+          originalRequest.headers.Authorization = `Bearer ${newToken}`;
+          return api(originalRequest);
+        }).catch((err) => {
+          return Promise.reject(err);
+        });
+      }
+
+      // Start refresh
       originalRequest._retry = true;
+      isRefreshing = true;
 
       try {
         const res = await axios.post('/api/auth/refresh', {}, { withCredentials: true });
@@ -57,15 +83,21 @@ api.interceptors.response.use(
 
         localStorage.setItem('sq_token', newToken);
 
+        // Process all queued requests with new token
+        processQueue(null, newToken);
+
         originalRequest.headers.Authorization = `Bearer ${newToken}`;
         return api(originalRequest);
       } catch (refreshError) {
+        processQueue(refreshError, null);
         localStorage.removeItem('sq_token');
         localStorage.removeItem('sq_user');
         if (window.location.pathname !== '/login') {
           window.location.href = '/login';
         }
         return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
       }
     }
 

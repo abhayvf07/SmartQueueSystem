@@ -17,8 +17,8 @@ const bookToken = async (req, res, next) => {
       throw new ApiError(400, "Please select a service.");
     }
 
-    // Prevent priority spoofing: only admins can set emergency
-    const actualPriority = req.user.role === 'admin' && priority === 'emergency' ? 'emergency' : 'normal';
+    // Prevent priority spoofing: only admins can set emergency (priority 1)
+    const actualPriority = req.user.role === 'admin' && priority === 'emergency' ? 1 : 0;
 
     const token = await queueService.bookToken(req.user._id, serviceId, actualPriority);
 
