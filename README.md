@@ -1,4 +1,4 @@
-# Smart Queue Management System
+# Smart Queue Management System (QueueAI)
 
 A real-time queue management system built with the MERN stack and Socket.IO. I built this because I wanted to solve a real problem — the frustrating experience of waiting in long queues at hospitals and government offices with no idea how long it'll actually take.
 
