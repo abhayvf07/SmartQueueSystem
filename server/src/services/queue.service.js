@@ -113,7 +113,7 @@ const getQueueStats = async (serviceId) => {
     {
       $group: {
         _id: null,
-        avgWait: { $avg: { $subtract: ['$calledAt', '$createdAt'] } },
+        avgWait: { $avg: { $subtract: ['$completedAt', '$calledAt'] } },
       },
     },
   ]);

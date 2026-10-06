@@ -70,7 +70,7 @@ I spent a lot of time on this part and it's honestly what makes this project dif
 - **Context-aware chatbot (Gemini AI)** — doesn't just answer generic questions, it actually pulls live queue data from the database and tells users their exact position, real wait times and service recommendations
 - **Auto-classification for services** — admin types a service name and description, Gemini suggests the token prefix, capacity per hour and explains why
 - **Smart wait time prediction** — uses today's average wait time from completed tokens, with a capacityPerHour fallback for cold starts. Multiplied by dynamic queue position for per-token estimates
-- **Congestion anomaly detection** — uses Z-scores based on 7-day rolling mean and standard deviation to flag when a queue is abnormally slow, instead of using hardcoded thresholds
+- **Congestion anomaly detection** — uses Z-scores based on 7-day rolling mean and standard error to flag when a queue is abnormally slow, instead of using hardcoded thresholds
 - **Traffic forecasting** — EWMA-based 24-hour prediction for the next day, filtered by day-of-week so weekends don't mess up weekday forecasts
 - **Sentiment monitoring** — every chatbot interaction gets classified as positive, neutral or frustrated. Aggregated in the admin panel so managers can actually see if users are getting frustrated with wait times
 
@@ -138,9 +138,9 @@ This approach is simple but effective — it naturally adjusts as the day progre
 This flags services that are unusually congested — not based on fixed thresholds, but statistically. Here's how it works:
 
 1. It pulls historical wait times for completed tokens over the last 7 days to establish a baseline
-2. Calculates the mean and standard deviation of those wait times
+2. Calculates the mean and standard error of those wait times
 3. Computes the Z-score for the current average wait time
-4. If the Z-score goes above 2 (meaning current wait time is more than 2 standard deviations above normal), it triggers an anomaly alert in the admin panel
+4. If the Z-score goes above 2 (meaning current wait time is more than 2 standard errors above normal), it triggers an anomaly alert in the admin panel
 
 The reason I used Z-score instead of a fixed threshold is that different services have completely different normal wait times. A 20-minute wait might be totally normal for one service and a crisis for another. Statistical detection handles this automatically.
 
